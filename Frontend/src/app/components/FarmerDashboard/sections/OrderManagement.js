@@ -1,40 +1,28 @@
 'use client'
-import React, { useState } from 'react';
-import { Search, Filter, Clock, CheckCircle, XCircle, AlertTriangle, Download, Eye, MoreVertical } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Clock, CheckCircle, XCircle, AlertTriangle, Download, Eye, MoreVertical, Loader2 } from 'lucide-react';
+import apiClient from '../../../apiClient';
 
 export default function OrderManagement() {
-  const [orders, setOrders] = useState([
-    {
-      id: '#ORD-001',
-      customerName: 'John Doe',
-      products: ['Organic Tomatoes', 'Fresh Carrots'],
-      total: 150.00,
-      status: 'pending',
-      date: '2024-02-20',
-      paymentStatus: 'paid',
-      location: 'Kumba'
-    },
-    {
-      id: '#ORD-002',
-      customerName: 'Jane Smith',
-      products: ['Sweet Corn', 'Bell Peppers'],
-      total: 85.50,
-      status: 'processing',
-      date: '2024-02-19',
-      paymentStatus: 'pending',
-      location: 'Bamenda'
-    },
-    {
-      id: '#ORD-003',
-      customerName: 'Mike Johnson',
-      products: ['Organic Potatoes'],
-      total: 45.00,
-      status: 'completed',
-      date: '2024-02-18',
-      paymentStatus: 'paid',
-      location: 'Douala'
-    }
-  ]);
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await apiClient.get('/orders');
+        setOrders(response.data);
+        setError(null);
+      } catch (err) {
+        setError(err.message || 'Failed to fetch orders');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
 
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +56,35 @@ export default function OrderManagement() {
       order.products.some(product => product.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesStatus && matchesSearch;
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+          <p className="text-gray-600">Loading orders...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <XCircle className="w-12 h-12 text-red-500" />
+          <p className="text-gray-800 font-medium">Failed to load orders</p>
+          <p className="text-gray-600">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

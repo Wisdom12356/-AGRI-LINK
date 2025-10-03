@@ -36,8 +36,10 @@ export default function Login() {
         throw new Error('Login failed');
       }
       
-      localStorage.setItem('token', response.data.token);
+      // Store authentication data
+      localStorage.setItem('token', `${response.data.token}`);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userId', response.data.user._id); // Store userId separately for socket.io
       
       // Redirect to dashboard on successful login
       window.location.href = response?.data?.user?.role === 'farmer' ? '/farmer-dashboard' : '/client-dashboard';

@@ -20,8 +20,14 @@ const OrderForm = ({ product, onClose }) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-
-        try {po0*+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('Please log in to place an order');
+            setLoading(false);
+            return;
+        }
+        
+        try {
             const response = await fetch('http://localhost:5000/api/orders', {
                 method: 'POST',
                 headers: {

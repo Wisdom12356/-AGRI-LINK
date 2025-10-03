@@ -1,5 +1,5 @@
 import React from "react";
-import { BarChart3, Users, ShoppingCart, Star, TrendingUp, X, Zap, UserIcon, Store } from 'lucide-react';
+import { BarChart3, Users, ShoppingCart, Star, TrendingUp, X, Zap, UserIcon, Store, MessageSquare } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) {
     const sidebarItems = [
@@ -7,10 +7,11 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
         { id: 'marketplace', label: 'Marketplace', icon: Store },
         { id: 'orders', label: 'Orders', icon: ShoppingCart },
         { id: 'products', label: 'Products', icon: Star },
+        { id: 'marketing', label: 'Marketing Trends', icon: TrendingUp },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'reviews', label: 'Reviews', icon: Star },
+        { id: 'messages', label: 'Messages', icon: MessageSquare, badge: true },
         { id: 'profile', label: 'Profile', icon: UserIcon },
-
       ];
     return(
         <div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
@@ -47,8 +48,17 @@ export default function Sidebar({ activeTab, setActiveTab, sidebarOpen, setSideb
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                       >
-                        <Icon className="w-5 h-5" />
-                        <span className="font-medium">{item.label}</span>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center space-x-3">
+                            <Icon className="w-5 h-5" />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.badge && (
+                            <div className="px-2 py-1 bg-red-500 text-white text-xs rounded-full">
+                              2
+                            </div>
+                          )}
+                        </div>
                       </button>
                     );
                   })}

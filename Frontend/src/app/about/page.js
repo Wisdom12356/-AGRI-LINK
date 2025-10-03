@@ -15,25 +15,25 @@ export default function About() {
       name: "Sarah Johnson",
       role: "Founder & CEO",
       bio: "Former agricultural economist with 15 years experience in farming communities",
-      image: "/api/placeholder/300/300"
+      image: "/images/man3.jpg"
     },
     {
       name: "Michael Rodriguez",
       role: "CTO",
       bio: "Agricultural technology specialist with a background in sustainable farming",
-      image: "/api/placeholder/300/300"
+      image: "/images/man1.jpg"
     },
     {
       name: "Aisha Patel",
       role: "Head of Farmer Relations",
       bio: "Third-generation farmer and agricultural community advocate",
-      image: "/api/placeholder/300/300"
+      image: "/images/man2.jpg"
     },
     {
       name: "David Chen",
       role: "Lead Developer",
       bio: "Tech expert focused on creating simple tools for rural communities",
-      image: "/api/placeholder/300/300"
+      image: "/images/man1.jpg"
     }
   ];
 
@@ -66,10 +66,10 @@ export default function About() {
   ];
 
   const partners = [
-    { name: "National Farmers Association", logo: "/api/placeholder/180/60" },
-    { name: "Agricultural Innovation Fund", logo: "/api/placeholder/180/60" },
-    { name: "Sustainable Farming Initiative", logo: "/api/placeholder/180/60" },
-    { name: "Rural Development Council", logo: "/api/placeholder/180/60" }
+    { name: "National Farmers Association", logo: "/images/NFA.png" },
+    { name: "Agricultural Innovation Fund", logo: "/images/NFA.png" },
+    { name: "Sustainable Farming Initiative", logo: "/images/NFA.png" },
+    { name: "Rural Development Council", logo: "/images/NFA.png" }
   ];
 
   return (
@@ -105,7 +105,7 @@ export default function About() {
               <p className="text-gray-700">Today, AgriLink has grown from a small startup serving a single region to a nationwide platform helping thousands of farmers reach new markets and helping buyers access fresher, more affordable agricultural products.</p>
             </div>
             <div className="md:w-1/2">
-              <img src="/api/placeholder/600/400" alt="Farmers using AgriLink" className="rounded-lg shadow-md w-full" />
+              <img src="/images/farmland.jpg" alt="Farmers using AgriLink" className="rounded-lg shadow-md w-full" />
             </div>
           </div>
         </div>

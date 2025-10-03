@@ -1,24 +1,133 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, Save } from 'lucide-react';
+import apiClient from '../../../apiClient';
 
 export default function ProfileManagement() {
-  const [profile, setProfile] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+237 673952588',
-    address: 'Douala, Cameroon',
-    farmName: 'Green Valley Farm',
-    farmSize: '50 acres',
-    bio: 'Organic farmer with 10 years of experience specializing in vegetables and fruits.',
-    bankInfo: {
-      bankName: 'Example Bank',
-      accountNumber: '****1234',
-      accountType: 'Savings'
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  const handleChange = (e, section = null) => {
+    const { name, value } = e.target;
+    
+    if (section === 'bankInfo') {
+      setProfile(prev => ({
+        ...prev,
+        bankInfo: {
+          ...(prev.bankInfo || {}), // Ensure bankInfo exists
+          [name]: value
+        }
+      }));
+    } else {
+      setProfile(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
+  };
+
+  const defaultProfile = {
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    farmName: '',
+    farmSize: '',
+    bio: '',
+    bankInfo: {
+      bankName: '',
+      accountNumber: '',
+      accountType: ''
+    }
+  };
+
+  const [profile, setProfile] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) return defaultProfile;
+    
+    const parsedUser = JSON.parse(savedUser);
+    return {
+      ...defaultProfile,
+      ...parsedUser,
+      bankInfo: {
+        ...defaultProfile.bankInfo,
+        ...(parsedUser.bankInfo || {})
+      }
+    };
   });
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await apiClient.get('/farmers/profile');
+        if (response.data && response.data.data) {
+          // Merge the response data with default profile to ensure all fields exist
+          setProfile(prev => ({
+            ...defaultProfile,
+            ...response.data.data,
+            bankInfo: {
+              ...defaultProfile.bankInfo,
+              ...(response.data.data.bankInfo || {})
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        if (error.response?.status === 401) {
+          window.location.href = '/login';
+        }
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleSubmit = async () => {
+    try {
+      setIsLoading(true);
+      setSaveSuccess(false);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please log in to update your profile');
+      }
+
+      console.log('Sending profile update:', { profile });
+
+      const response = await apiClient.put('/farmers/profile', profile);
+
+      // Update the local profile with the server response data
+      if (response.data && response.data.data) {
+        setProfile(prev => ({
+          ...prev,
+          ...response.data.data
+        }));
+      }
+
+      setSaveSuccess(true);
+      setIsEditing(false);
+      
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile. Please try again.';
+      alert(errorMessage);
+      
+      // If token is invalid, redirect to login
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -39,12 +148,25 @@ export default function ProfileManagement() {
             <p className="text-gray-500">{profile.farmName}</p>
           </div>
           
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-          >
-            {isEditing ? 'Save Changes' : 'Edit Profile'}
-          </button>
+          <div className="space-y-2">
+            {saveSuccess && (
+              <p className="text-green-600 text-sm">Profile updated successfully!</p>
+            )}
+            <button
+              onClick={() => isEditing ? handleSubmit() : setIsEditing(true)}
+              disabled={isLoading}
+              className={`bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed flex items-center space-x-2`}
+            >
+              {isLoading ? (
+                <>
+                  <span className="animate-spin">⌛</span>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>{isEditing ? 'Save Changes' : 'Edit Profile'}</span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -57,7 +179,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Full Name</label>
               <input
                 type="text"
+                name="name"
                 value={profile.name}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -66,7 +190,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
+                name="email"
                 value={profile.email}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -75,7 +201,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Phone</label>
               <input
                 type="tel"
+                name="phone"
                 value={profile.phone}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -84,7 +212,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Address</label>
               <input
                 type="text"
+                name="address"
                 value={profile.address}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -99,7 +229,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Farm Name</label>
               <input
                 type="text"
+                name="farmName"
                 value={profile.farmName}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -108,7 +240,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Farm Size</label>
               <input
                 type="text"
+                name="farmSize"
                 value={profile.farmSize}
+                onChange={handleChange}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -116,7 +250,9 @@ export default function ProfileManagement() {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Bio</label>
               <textarea
+                name="bio"
                 value={profile.bio}
+                onChange={handleChange}
                 disabled={!isEditing}
                 rows="4"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
@@ -132,7 +268,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Bank Name</label>
               <input
                 type="text"
-                value={profile.bankInfo.bankName}
+                name="bankName"
+                value={profile.bankInfo?.bankName || ''}
+                onChange={(e) => handleChange(e, 'bankInfo')}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />
@@ -141,7 +279,9 @@ export default function ProfileManagement() {
               <label className="block text-sm font-medium text-gray-700">Account Number</label>
               <input
                 type="text"
-                value={profile.bankInfo.accountNumber}
+                name="accountNumber"
+                value={profile.bankInfo?.accountNumber || ''}
+                onChange={(e) => handleChange(e, 'bankInfo')}
                 disabled={!isEditing}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
               />

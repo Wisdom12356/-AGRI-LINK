@@ -10,6 +10,8 @@ import CustomerManagement from '../components/FarmerDashboard/sections/CustomerM
 import ReviewManagement from '../components/FarmerDashboard/sections/ReviewManagement';
 import ProfileManagement from '../components/FarmerDashboard/sections/ProfileManagement';
 import Marketplace from '../components/FarmerDashboard/sections/Marketplace';
+import Messages from '../components/FarmerDashboard/sections/Messages';
+import MarketingTrends from '../components/FarmerDashboard/MarketingTrends';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -86,8 +88,12 @@ export default function AdminDashboard() {
             <CustomerManagement />
           ) : activeTab === 'reviews' ? (
             <ReviewManagement />
+          ) : activeTab === 'messages' ? (
+            <Messages />
           ) : activeTab === 'profile' ? (
             <ProfileManagement />
+          ) : activeTab === 'marketing' ? (
+            <MarketingTrends />
           ) : (
             <UnderDevelopment section={activeTab} />
           )}

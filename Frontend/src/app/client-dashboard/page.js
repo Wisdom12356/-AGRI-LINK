@@ -1,7 +1,9 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, Filter, Bell, User, ShoppingCart, TrendingUp, Star, Package, Truck, Phone, Mail, Globe, Menu, X, ChevronDown, Heart } from 'lucide-react';
+import { Search, MapPin, Filter, Bell, User, ShoppingCart, TrendingUp, Star, Package, Truck, Phone, Mail, Globe, Menu, X, ChevronDown, Heart, MessageSquare } from 'lucide-react';
+import { io } from 'socket.io-client';
 import ProductCard from '../components/ProductCard';
+import ChatModal from '../components/Chat/ChatModal';
 
 const AgriculturalDashboard = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,6 +16,33 @@ const AgriculturalDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [showChat, setShowChat] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [currentChat, setCurrentChat] = useState(null);
+  const [chats, setChats] = useState([]);
+  const [socket, setSocket] = useState(null);
+
+  const fetchChatHistory = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`http://localhost:5000/api/chat/order/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch chat history');
+      }
+
+      const messages = await response.json();
+      setMessages(messages);
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -52,8 +81,52 @@ const AgriculturalDashboard = () => {
       }
     };
 
+    // Initialize Socket.IO with auth token
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    
+    console.log('Initializing socket with credentials:', { hasToken: !!token, hasUserId: !!userId });
+    
+    const newSocket = io('http://localhost:5000', {
+      auth: {
+        token,
+        userId
+      },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    
+    // Handle socket events
+    newSocket.on('connect', () => {
+      console.log('Socket connected');
+    });
+
+    newSocket.on('chat-message', (message) => {
+      console.log('Received message:', message);
+      setMessages(prev => [...prev, message]);
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    setSocket(newSocket);
+
+    // Fetch initial data
     fetchProducts();
     fetchOrders();
+
+    // Cleanup function
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
   }, []);
 
   const categories = [
@@ -69,6 +142,35 @@ const AgriculturalDashboard = () => {
     { label: 'Active Orders', value: orders?.filter(o => o.status === 'pending').length || 0, icon: TrendingUp },
     { label: 'Completed Orders', value: orders?.filter(o => o.status === 'delivered').length || 0, icon: Star }
   ];
+
+  const handleSendMessageAsync = async (message) => {
+    if (!currentChat?.orderId) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch(`http://localhost:5000/api/chat/order/${currentChat.orderId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message,
+          recipientId: currentChat.farmerId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      // The actual message will be received through the socket
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
 
   const filteredProducts = products.filter(product => {
     const matchesCategory = selectedCategory === 'all' || product.category.toLowerCase() === selectedCategory;
@@ -87,6 +189,62 @@ const AgriculturalDashboard = () => {
       }
       return newFavorites;
     });
+  };
+
+  const handleSendMessage = async (messageText) => {
+    if (!currentChat || !messageText.trim() || !socket) {
+      console.log('Cannot send message:', { currentChat, messageText, hasSocket: !!socket });
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      
+      console.log('Authentication check:', {
+        hasToken: !!token,
+        tokenValue: token,
+        hasUserId: !!userId,
+        userIdValue: userId
+      });
+      
+      if (!userId || !token) {
+        console.error('Missing authentication data:', { hasToken: !!token, hasUserId: !!userId });
+        throw new Error('Not authenticated - missing ' + (!token ? 'token' : 'userId'));
+      }
+
+      // Create message object
+      if (!currentChat.farmerId) {
+        console.error('No farmer ID available');
+        return;
+      }
+
+      const newMessage = {
+        orderId: currentChat.orderId,
+        senderId: userId,
+        recipientId: currentChat.farmerId,
+        message: messageText, // Changed from content to message to match backend
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log('Sending message:', newMessage);
+      
+      // Emit the message through socket
+      socket.emit('chat-message', newMessage, (acknowledgement) => {
+        console.log('Message acknowledgement:', acknowledgement);
+      });
+      
+      // Add to local messages
+      const localMessage = {
+        ...newMessage,
+        content: messageText, // Keep content for local display
+        _id: Date.now().toString(),
+      };
+      
+      setMessages(prev => [...prev, localMessage]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
   return (
@@ -133,7 +291,7 @@ const AgriculturalDashboard = () => {
 
               <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
                 <User className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium">Mellor Wisdom</span>
+                <span className="text-sm font-medium">Client</span>
               </div>
             </div>
 
@@ -172,10 +330,20 @@ const AgriculturalDashboard = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Chat Toggle Button */}
+        <button
+          onClick={() => setShowChat(!showChat)}
+          className="fixed bottom-6 right-6 z-50 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-colors"
+        >
+          {showChat ? <X /> : <MessageSquare />}
+        </button>
+
+        {/* Chat will be rendered through ChatModal component */}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, Mellor! 👋
+            Welcome back, Client! 👋
           </h2>
           <p className="text-gray-600">Discover fresh produce from local farmers in your area</p>
         </div>
@@ -281,6 +449,7 @@ const AgriculturalDashboard = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -313,6 +482,65 @@ const AgriculturalDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(order.createdAt).toLocaleDateString()}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              // Debug log the complete order object
+                              console.log('Debug - Complete order object:', JSON.stringify(order, null, 2));
+                              
+                              // Get farmer info directly from the order
+                              const farmerId = order.farmerId._id;
+                              const farmerName = order.farmerId.name;
+                              
+                              if (!farmerId) {
+                                console.error('No farmer ID found in order:', order._id);
+                                return;
+                              }
+                              
+                              console.log('Debug - Final Chat Info:', {
+                                orderId: order._id,
+                                farmerId: farmerId,
+                                farmerName: farmerName,
+                                productName: product.name
+                              });
+                              
+                              const chatInfo = {
+                                orderId: order._id,
+                                farmerId: farmerId,
+                                farmerName: farmerName || 'Farmer'
+                              };
+                              
+                              console.log('Debug - Chat Info:', chatInfo);
+                              
+                              // Verify we have the required IDs
+                              if (!chatInfo.farmerId) {
+                                console.error('Missing farmerId:', {
+                                  productId: order.productId,
+                                  farmerInfo: order.productId?.farmerId
+                                });
+                                return;
+                              }
+                              
+                              setCurrentChat(chatInfo);
+                              setShowChat(true);
+                              
+                              // Fetch chat history
+                              fetchChatHistory(order._id);
+                              
+                              // Join chat room
+                              if (socket) {
+                                socket.emit('join-chat-room', {
+                                  orderId: order._id,
+                                  userId: localStorage.getItem('userId')
+                                });
+                              }
+                            }}
+                            className="text-green-600 hover:text-green-900 inline-flex items-center space-x-2"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            <span>Chat with Farmer</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -341,6 +569,17 @@ const AgriculturalDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Chat Modal */}
+      <ChatModal
+        isOpen={showChat}
+        onClose={() => setShowChat(false)}
+        currentChat={currentChat}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        orderId={currentChat?.orderId}
+        farmerId={currentChat?.farmerId}
+      />
     </div>
   );
 };

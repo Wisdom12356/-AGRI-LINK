@@ -12,9 +12,39 @@ const userSchema = new mongoose.Schema({
     unique: true,
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
+  phone: {
+    type: String,
+    trim: true
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  farmName: {
+    type: String,
+    trim: true
+  },
   farmSize: {
-    type: Number,
+    type: String,
     required: [true, 'Please enter your farm size']
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
+  bankInfo: {
+    bankName: {
+      type: String,
+      trim: true
+    },
+    accountNumber: {
+      type: String,
+      trim: true
+    },
+    accountType: {
+      type: String,
+      trim: true
+    }
   },
   password: {
     type: String,
