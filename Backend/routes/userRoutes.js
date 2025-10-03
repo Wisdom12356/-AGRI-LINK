@@ -57,14 +57,14 @@ console.log("req.body", req.body)
       if (!user) {
         return res.status(400).json({ message: 'Invalid email' });
       }
-      secret_key="mellor_wisdom_1234566"
-    
       const isMatch = await bcrypt.compare(password, user.password);
       
     if (!isMatch) {
         return res.status(400).json({ message: 'Invalid password' });
       }
-const token = jwt.sign({ user}, secret_key, { expiresIn: '6h' });
+const token = jwt.sign({ user}, process.env.JWT_SECRET, { expiresIn: '6h' });
+      console.log('JWT_SECRET used for signing:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
+      console.log('Token created successfully');
       return res.status(200).json({ message: 'Login successful', user, token });
     } catch (error) {
       console.log("hash error", error.message)

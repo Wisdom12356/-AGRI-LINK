@@ -22,6 +22,21 @@ const AgriculturalDashboard = () => {
   const [chats, setChats] = useState([]);
   const [socket, setSocket] = useState(null);
 
+  const handleLogout = () => {
+    // Clear all authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userId');
+    
+    // Disconnect socket
+    if (socket) {
+      socket.disconnect();
+    }
+    
+    // Redirect to login page
+    window.location.href = '/login';
+  };
+
   const fetchChatHistory = async (orderId) => {
     try {
       const token = localStorage.getItem('token');
@@ -292,6 +307,13 @@ const AgriculturalDashboard = () => {
               <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
                 <User className="w-4 h-4 text-gray-600" />
                 <span className="text-sm font-medium">Client</span>
+                <button
+                  onClick={handleLogout}
+                  className="ml-2 text-sm text-red-600 hover:text-red-800 hover:underline"
+                  title="Logout"
+                >
+                  Logout
+                </button>
               </div>
             </div>
 
@@ -324,6 +346,12 @@ const AgriculturalDashboard = () => {
                   <option value="fr">Français</option>
                 </select>
               </div>
+              <button
+                onClick={handleLogout}
+                className="w-full text-left text-sm text-red-600 hover:text-red-800 hover:underline py-2"
+              >
+                Logout
+              </button>
             </div>
           </div>
         )}
@@ -501,7 +529,7 @@ const AgriculturalDashboard = () => {
                                 orderId: order._id,
                                 farmerId: farmerId,
                                 farmerName: farmerName,
-                                productName: product.name
+                                productName: order.productId.name
                               });
                               
                               const chatInfo = {
@@ -579,6 +607,7 @@ const AgriculturalDashboard = () => {
         onSendMessage={handleSendMessage}
         orderId={currentChat?.orderId}
         farmerId={currentChat?.farmerId}
+        clientId={localStorage.getItem('userId')}
       />
     </div>
   );

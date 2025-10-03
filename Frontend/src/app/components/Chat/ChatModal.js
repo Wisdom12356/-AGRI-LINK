@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { User, X, Send } from 'lucide-react';
 
-export default function ChatModal({ isOpen, onClose, currentChat, messages = [], onSendMessage, orderId, farmerId }) {
+export default function ChatModal({ isOpen, onClose, currentChat, messages = [], onSendMessage, orderId, farmerId, clientId }) {
   const [newMessage, setNewMessage] = useState('');
 
   const handleSubmit = (e) => {
@@ -49,42 +49,75 @@ export default function ChatModal({ isOpen, onClose, currentChat, messages = [],
               Today
             </span>
           </div>
-          {messages.map(message => (
-            <div
-              key={message.id}
-              className={`flex ${message.senderId === 'client' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className="flex items-end space-x-2">
-                {message.senderId !== 'client' && (
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center">
-                    <User className="w-5 h-5 text-gray-500" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[320px] rounded-2xl px-4 py-2 ${
-                    message.senderId === 'client'
-                      ? 'bg-green-500 text-white rounded-br-none'
-                      : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <span className={`text-xs mt-1 block ${
-                    message.senderId === 'client' ? 'text-green-100' : 'text-gray-500'
-                  }`}>
-                    {new Date(message.timestamp).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-                {message.senderId === 'client' && (
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex-shrink-0 flex items-center justify-center">
-                    <User className="w-5 h-5 text-green-600" />
-                  </div>
-                )}
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="text-center text-gray-500">
+                <p className="text-sm">No messages yet</p>
+                <p className="text-xs mt-1">Start the conversation!</p>
               </div>
             </div>
-          ))}
+          ) : (
+            messages.map(message => {
+              const isClient = message.senderId === clientId;
+              return (
+                <div
+                  key={message._id || message.id || message.timestamp}
+                  className={`flex ${isClient ? 'justify-end' : 'justify-start'} mb-4`}
+                >
+                  <div className={`flex items-end space-x-2 max-w-[75%] ${isClient ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                    {/* Farmer Avatar */}
+                    {!isClient && (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-500" />
+                      </div>
+                    )}
+                    
+                    {/* Message bubble */}
+                    <div
+                      className={`relative rounded-2xl px-4 py-3 shadow-sm ${
+                        isClient
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                          : 'bg-white text-gray-800 border border-gray-200'
+                      }`}
+                    >
+                      {/* Message content */}
+                      <p className="text-sm leading-relaxed">{message.message || message.content}</p>
+                      
+                      {/* Timestamp */}
+                      <div className={`flex items-center mt-2 ${isClient ? 'justify-end' : 'justify-start'}`}>
+                        <span className={`text-xs ${
+                          isClient ? 'text-green-100' : 'text-gray-500'
+                        }`}>
+                          {new Date(message.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      
+                      {/* Message tail */}
+                      <div
+                        className={`absolute bottom-0 w-3 h-3 transform rotate-45 ${
+                          isClient
+                            ? 'right-0 bg-green-500 -mr-1.5'
+                            : 'left-0 bg-white border-l border-b border-gray-200 -ml-1.5'
+                        }`}
+                      ></div>
+                    </div>
+                    
+                    {/* Client Avatar */}
+                    {isClient && (
+                      <div className="w-8 h-8 rounded-full bg-green-100 flex-shrink-0 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                          <span className="text-white text-xs font-semibold">C</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Chat Input */}

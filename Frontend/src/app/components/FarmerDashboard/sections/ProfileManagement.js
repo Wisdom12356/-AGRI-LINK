@@ -45,15 +45,20 @@ export default function ProfileManagement() {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return defaultProfile;
     
-    const parsedUser = JSON.parse(savedUser);
-    return {
-      ...defaultProfile,
-      ...parsedUser,
-      bankInfo: {
-        ...defaultProfile.bankInfo,
-        ...(parsedUser.bankInfo || {})
-      }
-    };
+    try {
+      const parsedUser = JSON.parse(savedUser);
+      return {
+        ...defaultProfile,
+        ...parsedUser,
+        bankInfo: {
+          ...defaultProfile.bankInfo,
+          ...(parsedUser.bankInfo || {})
+        }
+      };
+    } catch (error) {
+      console.error('Error parsing user data from localStorage:', error);
+      return defaultProfile;
+    }
   });
 
   useEffect(() => {

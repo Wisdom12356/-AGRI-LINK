@@ -8,8 +8,16 @@ export default function ProductManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const user = JSON.parse(localStorage.getItem('user'));
-      const userId = user._id; 
+  const user = (() => {
+    try {
+      const userData = localStorage.getItem('user');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error parsing user data from localStorage:', error);
+      return null;
+    }
+  })();
+  const userId = user ? user._id : null; 
   const fetchProducts = async () => {
   
       console.log("user id:", userId);
@@ -57,8 +65,13 @@ export default function ProductManagement() {
   };
   
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (user && userId) {
+      fetchProducts();
+    } else {
+      setLoading(false);
+      setError('User not authenticated. Please log in again.');
+    }
+  }, [user, userId]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -160,44 +173,78 @@ export default function ProductManagement() {
     setError(null);
     setCreateLoading(true);
     
+    if (!user || !userId) {
+      setError('User not authenticated. Please log in again.');
+      setCreateLoading(false);
+      return;
+    }
+    
     try {
+      // Get form values
+      const name = e.target.name.value.trim();
+      const category = e.target.category.value;
+      const price = parseFloat(e.target.price.value);
+      const stock = parseInt(e.target.stock.value);
+      const unit = e.target.unit.value.trim();
+      const description = e.target.description.value.trim();
+      const imageFile = e.target.image.files[0];
+
+      // Validate required fields
+      if (!name || !category || !price || !stock || !unit || !description) {
+        setError('Please fill in all required fields');
+        setCreateLoading(false);
+        return;
+      }
+
+      if (isNaN(price) || price <= 0) {
+        setError('Please enter a valid price');
+        setCreateLoading(false);
+        return;
+      }
+
+      if (isNaN(stock) || stock < 0) {
+        setError('Please enter a valid stock quantity');
+        setCreateLoading(false);
+        return;
+      }
+
       const formData = new FormData();
-      
-      formData.append('name', e.target.name.value.trim());
-      formData.append('category', e.target.category.value);
-      formData.append('price', parseFloat(e.target.price.value));
-      formData.append('stock', parseInt(e.target.stock.value));
-      formData.append('unit', e.target.unit.value);
-      formData.append('description', e.target.description.value.trim());
+      formData.append('name', name);
+      formData.append('category', category);
+      formData.append('price', price);
+      formData.append('stock', stock);
+      formData.append('unit', unit);
+      formData.append('description', description);
       formData.append('status', 'active');
       
       // Handle image file
-      const imageFile = e.target.image.files[0];
       if (imageFile) {
         formData.append('file', imageFile);
       }
 
-      console.log("File: ", imageFile, "Form data: ", formData.get('name'));
+      console.log("File: ", imageFile, "Form data: ", name);
       
-            // return;
-      // Validate required fields
-      if (!formData.get("name") || !formData.get("category") || !formData.get("price") || !formData.get("stock") || !formData.get("unit")) {
-        setError('Please fill in all required fields');
-        return;
-      }
-
-      const response = await apiClient.post(`/products/${userId}`, formData);
+      const response = await apiClient.post(`/products/${userId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
       console.log("Add product response:", response);
-      if (response.status !== 201) {
+      
+      if (response.status === 201) {
+        setProducts([...products, response.data]);
+        setShowAddModal(false);
+        // Reset form
+        e.target.reset();
+        // Refresh the products list
+        fetchProducts();
+      } else {
         throw new Error('Failed to add product');
-      } 
-      setProducts([...products, response.data]);
-      setShowAddModal(false);
-      // You might want to refresh the products list here
-      fetchProducts();
+      }
     } catch (error) {
       console.error('Error adding product:', error);
-      setError(error.message || 'Failed to add product. Please try again.');
+      console.error('Error details:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to add product. Please try again.';
+      setError(errorMessage);
     } finally {
       setCreateLoading(false);
     }
@@ -321,6 +368,11 @@ export default function ProductManagement() {
               </div>
               
               <form onSubmit={handleAddProduct} className="space-y-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {error}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
                   <input
@@ -399,18 +451,19 @@ export default function ProductManagement() {
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setShowAddModal(false)}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
-                  </div>
+                  </button>
                   <button
                     type="submit"
                     disabled={createLoading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {createLoading ? "Creating product ..." : "Add Product"}
+                    {createLoading ? "Creating product..." : "Add Product"}
                   </button>
                 </div>
               </form>
@@ -435,6 +488,11 @@ export default function ProductManagement() {
               </div>
               
               <form onSubmit={handleEditProduct} className="space-y-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {error}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
                   <input
@@ -518,7 +576,8 @@ export default function ProductManagement() {
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
-                  <div
+                  <button
+                    type="button"
                     onClick={() => {
                       setShowEditModal(false);
                       setSelectedProduct(null);
@@ -526,11 +585,11 @@ export default function ProductManagement() {
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
-                  </div>
+                  </button>
                   <button
                     type="submit"
                     disabled={editLoading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {editLoading ? "Updating product..." : "Update Product"}
                   </button>

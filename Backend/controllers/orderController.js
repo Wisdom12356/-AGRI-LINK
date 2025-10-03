@@ -98,7 +98,7 @@ const getUserOrders = async (req, res) => {
             .lean();
 
         // Map the orders to ensure consistent structure
-        const populatedOrders = orders.map(order => {
+        const populatedOrders = await Promise.all(orders.map(async order => {
             // Log each order's product and farmer data for debugging
             console.log('Debug - Order Population:', {
                 orderId: order._id,
@@ -110,25 +110,25 @@ const getUserOrders = async (req, res) => {
 
             console.log('Debug - Population Details:', {
                 orderId: order._id,
-                productId: product?._id,
-                originalFarmerId: product?.farmerId,
-                rawProduct: product
+                productId: order.productId?._id,
+                originalFarmerId: order.productId?.farmerId,
+                rawProduct: order.productId
             });
 
-            if (!product) {
+            if (!order.productId) {
                 console.log('Product not found for order:', order._id);
                 return order;
             }
 
-            if (!product.farmerId) {
-                console.log('Farmer not found for product:', product._id);
+            if (!order.productId.farmerId) {
+                console.log('Farmer not found for product:', order.productId._id);
                 
                 // Try to fetch the farmer directly
                 const User = require('../models/User');
                 try {
-                    const farmer = await User.findById(product.farmerId).lean();
+                    const farmer = await User.findById(order.productId.farmerId).lean();
                     if (farmer) {
-                        product.farmerId = {
+                        order.productId.farmerId = {
                             _id: farmer._id,
                             name: farmer.name
                         };
@@ -140,7 +140,7 @@ const getUserOrders = async (req, res) => {
 
             // Keep the order structure as is since it's already properly populated
             return order;
-        });
+        }));
 
         // Log each populated order for debugging
         populatedOrders.forEach((order, index) => {
@@ -155,13 +155,6 @@ const getUserOrders = async (req, res) => {
             });
         });
 
-        // Send the populated orders
-        res.status(200).json({
-            success: true,
-            count: orders.length,
-            orders: orders
-        });
-
         // Log the full order data to inspect the structure
         console.log('Debug - Full Order Data:', JSON.stringify(orders.map(order => ({
             orderId: order._id,
@@ -173,13 +166,14 @@ const getUserOrders = async (req, res) => {
         })), null, 2));
 
         // Check if any orders were found
-        if (!orders) {
+        if (!orders || orders.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'No orders found'
             });
         }
 
+        // Send the populated orders
         res.status(200).json({
             success: true,
             count: populatedOrders.length,
@@ -195,8 +189,54 @@ const getUserOrders = async (req, res) => {
     }
 };
 
+// Get farmer's orders
+const getFarmerOrders = async (req, res) => {
+    try {
+        const { farmerId } = req.params;
+
+        // Verify if user exists in the request
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated'
+            });
+        }
+
+        // Get orders for the specific farmer
+        const orders = await Order.find({ farmerId: farmerId })
+            .populate('userId', 'name email')
+            .populate('productId', '_id name price description')
+            .populate('farmerId', 'name _id')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Check if any orders were found
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No orders found for this farmer'
+            });
+        }
+
+        // Send the populated orders
+        res.status(200).json({
+            success: true,
+            count: orders.length,
+            orders: orders
+        });
+    } catch (error) {
+        console.error('Error fetching farmer orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching farmer orders',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     setSocketService,
     createOrder,
-    getUserOrders
+    getUserOrders,
+    getFarmerOrders
 };
